@@ -1,0 +1,11 @@
+requirements.txt
+These are the dependencies required for running the Orange Varieties Classification project.
+
+torch==2.8.0+cpu
+torchvision==0.15.1+cpu
+matplotlib==3.7.2
+pandas==2.1.1
+pillow==10.1.0
+
+Note: If installation issues occur with PyTorch, use the following command:
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu

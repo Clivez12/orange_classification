@@ -1,0 +1,9 @@
+Metric,Value
+Average Train Loss,0.5194102567290106
+Average Validation Loss,1.0578509613871574
+Average Train Accuracy,0.8056451612903226
+Average Validation Accuracy,0.725
+Best Train Loss,0.22601072033566813
+Best Validation Loss,0.6037716865539551
+Best Train Accuracy,0.9354838709677419
+Best Validation Accuracy,0.8125
