@@ -1,14 +1,9 @@
-# Deep Learning and Image Processing
 torch==2.7.0
 torchvision==0.22.0
 opencv-python-headless==4.12.0.88
-Pillow==12.0.0
-
-# Data Science
-numpy==2.3.4
-pandas==2.3.3
-scikit-learn==1.7.2
-matplotlib==3.10.7
-
-# Streamlit App
+Pillow==11.0.0
+numpy==2.2.6
+pandas==2.2.3
+scikit-learn==1.5.2
+matplotlib==3.10.0
 streamlit==1.51.0
