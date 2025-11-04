@@ -1,11 +1,14 @@
-# Orange Varieties Classification - Requirements
-
-torch==2.5.1
+# Deep Learning and Image Processing
+torch==2.7.0
 torchvision==0.22.0
-streamlit==1.51.0
+opencv-python-headless==4.12.0.88
+Pillow==12.0.0
+
+# Data Science
 numpy==2.3.4
 pandas==2.3.3
-matplotlib==3.10.7
-Pillow==12.0.0
 scikit-learn==1.7.2
-opencv-python-headless==4.12.0.88
+matplotlib==3.10.7
+
+# Streamlit App
+streamlit==1.51.0

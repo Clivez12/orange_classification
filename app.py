@@ -1,76 +1,91 @@
 import streamlit as st
-from PIL import Image
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 from torchvision import models
+from PIL import Image
+import numpy as np
 
-# --------------------------
-# 1️⃣ PAGE CONFIGURATION
-# --------------------------
+# -------------------------------
+# Streamlit App Configuration
+# -------------------------------
 st.set_page_config(
-    page_title="Orange Varieties Classifier",
+    page_title="Orange Varieties Classification",
     page_icon="🍊",
-    layout="centered",
+    layout="wide"
 )
 
-st.title("🍊 Orange Varieties Classification")
-st.write("Upload an orange image to classify its variety using a deep learning model (PyTorch).")
+st.title("🍊 Deep Learning for Orange Varieties Classification")
+st.markdown("Upload an image of an orange to predict its variety using a trained deep learning model.")
 
-# --------------------------
-# 2️⃣ LOAD THE MODEL
-# --------------------------
+# -------------------------------
+# Define Model (ResNet-based)
+# -------------------------------
+class OrangeNet(nn.Module):
+    def __init__(self, num_classes=4):
+        super(OrangeNet, self).__init__()
+        self.model = models.resnet18(weights=None)
+        self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
+
+    def forward(self, x):
+        return self.model(x)
+
+# Load model
 @st.cache_resource
 def load_model():
-    model_path = "saved_models/best_model.pth"
-    model = models.resnet18(weights=None)
-    model.fc = nn.Linear(model.fc.in_features, 4)  # 4 classes: Ibadan Sweet, Tangerine, Valencia, Washington
-    model.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
-    model.eval()
+    model = OrangeNet(num_classes=4)
+    try:
+        model.load_state_dict(torch.load("orange_model.pth", map_location=torch.device('cpu')))
+        model.eval()
+    except Exception as e:
+        st.error(f"⚠️ Model not found or failed to load: {e}")
     return model
 
 model = load_model()
 
-# --------------------------
-# 3️⃣ IMAGE PREPROCESSING
-# --------------------------
+# -------------------------------
+# Define Transform
+# -------------------------------
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406],
-                         [0.229, 0.224, 0.225])
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
 ])
 
-classes = ["ibadan_sweet", "tangerine", "valencia", "washington"]
+# Class labels (update if needed)
+CLASS_NAMES = ["Ibadan Sweet", "Tangerine", "Valencia", "Washington"]
 
-# --------------------------
-# 4️⃣ IMAGE UPLOAD
-# --------------------------
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+# -------------------------------
+# Image Upload
+# -------------------------------
+uploaded_file = st.file_uploader("📷 Upload an orange image (JPG, PNG)", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image", use_container_width=True)
 
-    # --------------------------
-    # 5️⃣ MAKE PREDICTION
-    # --------------------------
-    with st.spinner("Classifying... ⏳"):
-        img_tensor = transform(image).unsqueeze(0)
-        with torch.no_grad():
-            outputs = model(img_tensor)
-            probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
-            confidence, predicted = torch.max(probabilities, 0)
+    # Preprocess
+    img_tensor = transform(image).unsqueeze(0)
 
-        st.success(f"✅ Predicted Variety: **{classes[predicted.item()].capitalize()}**")
-        st.write(f"Confidence: **{confidence.item() * 100:.2f}%**")
+    # Predict
+    with torch.no_grad():
+        outputs = model(img_tensor)
+        _, preds = torch.max(outputs, 1)
+        predicted_class = CLASS_NAMES[preds.item()]
 
-        # Show probability bar chart
-        st.subheader("Prediction Confidence per Class")
-        st.bar_chart({classes[i]: probabilities[i].item() for i in range(len(classes))})
+    # Display result
+    st.success(f"✅ Predicted Variety: **{predicted_class}**")
+    st.balloons()
+else:
+    st.info("👆 Upload an orange image to begin classification.")
 
-# --------------------------
-# 6️⃣ FOOTER
-# --------------------------
-st.markdown("---")
-st.caption("Developed by **Terna Henry Wua** | B.Sc. Computer Science | Joseph Sarwuan Tarka University, Makurdi")
+# -------------------------------
+# Footer
+# -------------------------------
+st.markdown("""
+---
+**Developed by Terna Henry Wua**  
+B.Sc. Computer Science (2025) — J.S. Tarka University, Makurdi  
+🔗 [GitHub](https://github.com/Clivez12) | [Portfolio](https://clivez12.github.io/My-Portfolio/)
+""")
