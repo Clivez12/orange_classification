@@ -1,14 +1,18 @@
-# Orange Varieties Classification - Dependencies
-# Developed by Terna Henry Wua
+# Orange Varieties Classification - Requirements
 
-torch==2.8.0
-torchvision==0.15.1+cpu
-matplotlib==3.7.2
-pandas==2.1.1
-numpy==1.26.4
-pillow==10.1.0
-streamlit==1.39.0
+# --- Core Libraries ---
+streamlit
+numpy
+pandas
+matplotlib
+Pillow
+scikit-learn
+opencv-python-headless
 
-# Note:
-# If you encounter installation issues with PyTorch on CPU-only environments, use:
-# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+# --- PyTorch (CPU build, compatible with Streamlit Cloud) ---
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2
+
+# --- Optional (for model handling and smooth deployment) ---
+tensorflow
