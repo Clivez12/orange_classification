@@ -1,18 +1,11 @@
 # Orange Varieties Classification - Requirements
 
-# --- Core Libraries ---
-streamlit
-numpy
-pandas
-matplotlib
-Pillow
-scikit-learn
-opencv-python-headless
-
-# --- PyTorch (CPU build, compatible with Streamlit Cloud) ---
-torch==2.2.2
-torchvision==0.17.2
-torchaudio==2.2.2
-
-# --- Optional (for model handling and smooth deployment) ---
-tensorflow
+torch==2.5.1
+torchvision==0.22.0
+streamlit==1.51.0
+numpy==2.3.4
+pandas==2.3.3
+matplotlib==3.10.7
+Pillow==12.0.0
+scikit-learn==1.7.2
+opencv-python-headless==4.12.0.88
