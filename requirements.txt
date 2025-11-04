@@ -1,7 +1,7 @@
 # Orange Varieties Classification - Dependencies
 # Developed by Terna Henry Wua
 
-torch==2.8.0+cpu
+torch==2.8.0
 torchvision==0.15.1+cpu
 matplotlib==3.7.2
 pandas==2.1.1
