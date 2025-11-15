@@ -1,2 +1,5 @@
 Image,Prediction,Confidence (%)
-w.jpg,washington,99.60
+sample_I.png,ibadan_sweet,99.99
+sample_T.jpg,tangerine,76.99
+sample_V.png,velencia,82.46
+sample_W.jpg,washington,98.57

@@ -1,78 +1,127 @@
+# evaluate.py
+
+import os
+from pathlib import Path
 import torch
 import torch.nn as nn
 from torchvision import datasets, transforms, models
 from torch.utils.data import DataLoader
+from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-from sklearn.metrics import confusion_matrix, classification_report
-import os
 
+# -----------------------------
 # Paths
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(BASE_DIR, "results", "best_model.pth")
-DATA_DIR = os.path.join(BASE_DIR, "dataset", "val")   # validation set
-RESULTS_DIR = os.path.join(BASE_DIR, "results")
+# -----------------------------
+# Project root (one level above src)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-os.makedirs(RESULTS_DIR, exist_ok=True)
+# Results folder
+RESULTS_DIR = PROJECT_ROOT / "results"
 
+# Validation dataset folder
+VAL_DIR = PROJECT_ROOT / "processed_dataset" / "val"
+
+# Model path
+MODEL_PATH = RESULTS_DIR / "orange_model.pth"
+
+# Create results folder if not exist
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+if not VAL_DIR.exists():
+    raise FileNotFoundError(f"❌ Validation folder not found: {VAL_DIR}")
+
+if not MODEL_PATH.exists():
+    raise FileNotFoundError(f"❌ Model not found at {MODEL_PATH}. Please train the model first.")
+
+# -----------------------------
 # Device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# -----------------------------
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {DEVICE}")
 
-# Data transforms (same as training)
+# -----------------------------
+# Class Names
+# -----------------------------
+CLASS_NAMES = sorted([d.name for d in (PROJECT_ROOT / "processed_dataset" / "train").iterdir() if d.is_dir()])
+NUM_CLASSES = len(CLASS_NAMES)
+
+# -----------------------------
+# Data Loader
+# -----------------------------
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
 ])
 
-# Load dataset
-dataset = datasets.ImageFolder(DATA_DIR, transform=transform)
-dataloader = DataLoader(dataset, batch_size=16, shuffle=False)
-class_names = dataset.classes
+val_dataset = datasets.ImageFolder(str(VAL_DIR), transform=transform)
+val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
 
-# Load model
-model = models.resnet18(pretrained=False)
-num_ftrs = model.fc.in_features
-model.fc = nn.Linear(num_ftrs, len(class_names))
-model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
-model = model.to(device)
+# -----------------------------
+# Define Model
+# -----------------------------
+class OrangeNet(nn.Module):
+    def __init__(self, num_classes=NUM_CLASSES):
+        super(OrangeNet, self).__init__()
+        self.model = models.resnet18(weights=None)
+        self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
+
+    def forward(self, x):
+        return self.model(x)
+
+# -----------------------------
+# Load Model
+# -----------------------------
+model = OrangeNet().to(DEVICE)
+model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
 model.eval()
+print(f"✅ Model loaded from {MODEL_PATH}")
 
+# -----------------------------
+# Run Evaluation
+# -----------------------------
 y_true, y_pred = [], []
 
-# Run inference
 with torch.no_grad():
-    for inputs, labels in dataloader:
-        inputs, labels = inputs.to(device), labels.to(device)
+    for inputs, labels in val_loader:
+        inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
         outputs = model(inputs)
         _, preds = torch.max(outputs, 1)
         y_true.extend(labels.cpu().numpy())
         y_pred.extend(preds.cpu().numpy())
 
-# ---- Confusion Matrix ----
+# -----------------------------
+# Confusion Matrix
+# -----------------------------
 cm = confusion_matrix(y_true, y_pred)
 plt.figure(figsize=(8, 6))
 sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
-            xticklabels=class_names, yticklabels=class_names)
+            xticklabels=CLASS_NAMES, yticklabels=CLASS_NAMES)
 plt.xlabel("Predicted")
 plt.ylabel("True")
 plt.title("Confusion Matrix")
+cm_path = RESULTS_DIR / "confusion_matrix.png"
 plt.tight_layout()
-plt.savefig(os.path.join(RESULTS_DIR, "confusion_matrix.png"))
+plt.savefig(cm_path)
 plt.close()
+print(f"✅ Confusion matrix saved to {cm_path}")
 
-print(f"✅ Confusion matrix saved to {os.path.join(RESULTS_DIR, 'confusion_matrix.png')}")
-
-# ---- Classification Report ----
-report = classification_report(y_true, y_pred, target_names=class_names, digits=4)
-report_path = os.path.join(RESULTS_DIR, "classification_report.txt")
+# -----------------------------
+# Classification Report
+# -----------------------------
+report = classification_report(y_true, y_pred, target_names=CLASS_NAMES, digits=4)
+report_path = RESULTS_DIR / "classification_report.txt"
 with open(report_path, "w") as f:
     f.write(report)
-
 print(f"✅ Classification report saved to {report_path}")
 print(report)
 
-# ---- Sample Predictions ----
+# -----------------------------
+# Optional: Sample Predictions
+# -----------------------------
 def imshow(inp, title=None):
     inp = inp.numpy().transpose((1, 2, 0))
     plt.imshow(inp)
@@ -81,16 +130,16 @@ def imshow(inp, title=None):
     plt.axis("off")
 
 fig = plt.figure(figsize=(12, 8))
-indices = np.random.choice(len(dataset), size=6, replace=False)
+indices = np.random.choice(len(val_dataset), size=min(6, len(val_dataset)), replace=False)
 for i, idx in enumerate(indices):
-    img, label = dataset[idx]
+    img, label = val_dataset[idx]
     with torch.no_grad():
-        output = model(img.unsqueeze(0).to(device))
+        output = model(img.unsqueeze(0).to(DEVICE))
         _, pred = torch.max(output, 1)
-    ax = fig.add_subplot(2, 3, i+1)
-    imshow(img, title=f"True: {class_names[label]}\nPred: {class_names[pred.item()]}")
+    ax = fig.add_subplot(2, 3, i + 1)
+    imshow(img, title=f"True: {CLASS_NAMES[label]}\nPred: {CLASS_NAMES[pred.item()]}")
 plt.tight_layout()
-plt.savefig(os.path.join(RESULTS_DIR, "sample_predictions.png"))
+sample_pred_path = RESULTS_DIR / "sample_predictions.png"
+plt.savefig(sample_pred_path)
 plt.close()
-
-print(f"✅ Sample predictions saved to {os.path.join(RESULTS_DIR, 'sample_predictions.png')}")
+print(f"✅ Sample predictions saved to {sample_pred_path}")

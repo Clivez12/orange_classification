@@ -1,0 +1,10 @@
+              precision    recall  f1-score   support
+
+ibadan_sweet     0.9767    1.0000    0.9882        42
+   tangerine     0.9677    1.0000    0.9836        30
+    velencia     1.0000    0.9750    0.9873        40
+  washington     1.0000    0.9744    0.9870        39
+
+    accuracy                         0.9868       151
+   macro avg     0.9861    0.9873    0.9865       151
+weighted avg     0.9871    0.9868    0.9868       151

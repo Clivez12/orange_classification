@@ -1,0 +1,14 @@
+{
+    "train": {
+        "ibadan_sweet": 64,
+        "tangerine": 43,
+        "velencia": 67,
+        "washington": 59
+    },
+    "val": {
+        "ibadan_sweet": 16,
+        "tangerine": 11,
+        "velencia": 17,
+        "washington": 15
+    }
+}

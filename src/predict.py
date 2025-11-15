@@ -1,3 +1,4 @@
+# predict.py
 import os
 import torch
 import torch.nn as nn
@@ -9,40 +10,57 @@ import pandas as pd
 # Paths
 # -----------------------------
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SAVE_DIR = os.path.join(PROJECT_ROOT, "saved_models")
 RESULTS_DIR = os.path.join(PROJECT_ROOT, "results")
-DATA_DIR = os.path.join(PROJECT_ROOT, "processed_dataset")
-
-MODEL_PATH = os.path.join(RESULTS_DIR, "model.pth")  # trained model
+MODEL_PATH = os.path.join(RESULTS_DIR, "orange_model.pth")
+INPUT_DIR = os.path.join(PROJECT_ROOT, "input_images")
 CSV_PATH = os.path.join(RESULTS_DIR, "predictions.csv")
+
+# Ensure folders exist
+os.makedirs(INPUT_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # -----------------------------
 # Device
 # -----------------------------
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {DEVICE}")
 
 # -----------------------------
 # Load class names
 # -----------------------------
-train_dir = os.path.join(DATA_DIR, "train")
-class_names = sorted(os.listdir(train_dir))
-num_classes = len(class_names)
+DATA_DIR = os.path.join(PROJECT_ROOT, "processed_dataset")
+TRAIN_DIR = os.path.join(DATA_DIR, "train")
+CLASS_NAMES = sorted(os.listdir(TRAIN_DIR))
+NUM_CLASSES = len(CLASS_NAMES)
 
 # -----------------------------
-# Model
+# Load Model
 # -----------------------------
-model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-model.fc = nn.Linear(model.fc.in_features, num_classes)
-model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
-model = model.to(device)
+class OrangeNet(nn.Module):
+    def __init__(self, num_classes=NUM_CLASSES):
+        super(OrangeNet, self).__init__()
+        self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
+
+    def forward(self, x):
+        return self.model(x)
+
+if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(f"❌ Model file not found at: {MODEL_PATH}")
+
+model = OrangeNet().to(DEVICE)
+model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
 model.eval()
+print(f"✅ Model loaded from {MODEL_PATH}")
 
 # -----------------------------
-# Transform for prediction
+# Image Transform
 # -----------------------------
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
 ])
 
 # -----------------------------
@@ -50,51 +68,40 @@ transform = transforms.Compose([
 # -----------------------------
 def predict_image(image_path):
     image = Image.open(image_path).convert("RGB")
-    img_tensor = transform(image).unsqueeze(0).to(device)
+    img_tensor = transform(image).unsqueeze(0).to(DEVICE)
 
     with torch.no_grad():
         outputs = model(img_tensor)
         probs = torch.softmax(outputs, dim=1)
         conf, preds = torch.max(probs, 1)
 
-    predicted_class = class_names[preds.item()]
+    predicted_class = CLASS_NAMES[preds.item()]
     confidence = conf.item() * 100
     return predicted_class, confidence
 
-def predict_folder(folder_path):
+def predict_input_folder():
     results = []
-    for file_name in os.listdir(folder_path):
-        if file_name.lower().endswith((".jpg", ".jpeg", ".png")):
-            img_path = os.path.join(folder_path, file_name)
-            prediction, confidence = predict_image(img_path)
-            results.append({
-                "Image": file_name,
-                "Prediction": prediction,
-                "Confidence (%)": f"{confidence:.2f}"
-            })
-    return results
+    files = [f for f in os.listdir(INPUT_DIR) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+    if not files:
+        print(f"⚠️ No images found in {INPUT_DIR}. Place your images there.")
+        return
+
+    for file_name in files:
+        img_path = os.path.join(INPUT_DIR, file_name)
+        pred_class, confidence = predict_image(img_path)
+        results.append({
+            "Image": file_name,
+            "Prediction": pred_class,
+            "Confidence (%)": f"{confidence:.2f}"
+        })
+        print(f"🍊 {file_name} -> {pred_class} ({confidence:.2f}%)")
+
+    df = pd.DataFrame(results)
+    df.to_csv(CSV_PATH, index=False)
+    print(f"\n📄 All predictions saved to: {CSV_PATH}")
 
 # -----------------------------
-# Run Tests
+# Run
 # -----------------------------
 if __name__ == "__main__":
-    # Single image prediction
-    test_image = os.path.join(PROJECT_ROOT, "sample.jpg")  # put your image here
-    if os.path.exists(test_image):
-        prediction, confidence = predict_image(test_image)
-        print(f"🍊 Single Image Prediction: {os.path.basename(test_image)} -> {prediction} ({confidence:.2f}%)")
-    else:
-        print(f"⚠️ Test image not found at {test_image}")
-
-    # Folder prediction
-    test_folder = os.path.join(PROJECT_ROOT, "test_images")  # put some images here
-    if os.path.exists(test_folder):
-        print("\n📂 Batch Predictions:")
-        results = predict_folder(test_folder)
-        for item in results:
-            print(f"   {item['Image']} -> {item['Prediction']} ({item['Confidence (%)']}%)")
-        df = pd.DataFrame(results)
-        df.to_csv(CSV_PATH, index=False)
-        print(f"\n📑 Predictions saved to {CSV_PATH}")
-    else:
-        print(f"⚠️ Test folder not found at {test_folder}")
+    predict_input_folder()
